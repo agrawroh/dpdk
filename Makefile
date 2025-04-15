@@ -123,8 +123,8 @@ install: all
 				cp -f $$found $(PREFIX)/include/; \
 			else \
 				echo "ERROR: Could not find $$file!"; \
-			fi \
-		fi \
+			fi; \
+		fi; \
 	done
 	
 	# Copy all remaining header files from lib (with a more robust loop)
@@ -140,6 +140,15 @@ install: all
 		base=$$(basename "$$header"); \
 		cp -f "$$header" "$(PREFIX)/include/$$base" || true; \
 	done
+
+	# Copy top-level include/ headers if that directory exists
+	@echo ">> Copying top-level include/ headers..."
+	if [ -d include ]; then \
+		find include -type f -name "*.h" | while read -r header; do \
+			base=$$(basename "$$header"); \
+			cp -f "$$header" "$(PREFIX)/include/$$base" || true; \
+		done; \
+	fi
 	
 	# Final verification
 	@echo ">> Verifying critical headers..."
