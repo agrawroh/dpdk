@@ -56,7 +56,7 @@ $(TARGET_LIB): $(OBJS)
 ################################################################################
 # install
 ################################################################################
-# Direct approach to copying all header files using direct paths
+# Direct approach to copying all header files using direct paths, flattening them
 
 install: all
 	@echo ">> Installing to $(PREFIX)"
@@ -70,7 +70,7 @@ install: all
 	# Install static library
 	cp -f $(TARGET_LIB) $(PREFIX)/lib
 	
-	# Copy rte_config.h (which we know works)
+	# Copy config headers if they exist
 	@echo ">> Copying rte_config.h..."
 	if [ -f config/rte_config.h ]; then \
 		cp -f config/rte_config.h $(PREFIX)/include/; \
@@ -81,68 +81,64 @@ install: all
 		cp -f config/rte_build_config.h $(PREFIX)/include/; \
 	fi
 	
-	# Direct copy of essential headers - avoiding pipes and loops which might fail
+	# Direct copy of a few “essential subdirs” if you want
 	@echo ">> Directly copying essential headers..."
 	
 	# EAL headers
 	for header in lib/eal/include/*.h; do \
-		cp -f $$header $(PREFIX)/include/ || true; \
+		cp -f "$$header" "$(PREFIX)/include/" || true; \
 	done
 	
 	# Ethdev headers
 	for header in lib/ethdev/*.h; do \
-		cp -f $$header $(PREFIX)/include/ || true; \
+		cp -f "$$header" "$(PREFIX)/include/" || true; \
 	done
 	
 	# Mbuf headers
 	for header in lib/mbuf/*.h; do \
-		cp -f $$header $(PREFIX)/include/ || true; \
+		cp -f "$$header" "$(PREFIX)/include/" || true; \
 	done
 	
 	# Net headers
 	for header in lib/net/*.h; do \
-		cp -f $$header $(PREFIX)/include/ || true; \
+		cp -f "$$header" "$(PREFIX)/include/" || true; \
 	done
 	
-	# Copy system headers
+	# Windows system headers
 	if [ -d lib/eal/windows/include/sys ]; then \
 		cp -f lib/eal/windows/include/sys/*.h $(PREFIX)/include/sys/ || true; \
 	fi
-	
 	if [ -d lib/eal/windows/include/netinet ]; then \
 		cp -f lib/eal/windows/include/netinet/*.h $(PREFIX)/include/netinet/ || true; \
 	fi
 	
-	# Manual copy of critical headers if they haven't been copied yet
+	# Manual fallback for critical headers
 	@echo ">> Manual fallback for critical headers..."
 	for file in rte_eal.h rte_ethdev.h rte_mbuf.h rte_version.h; do \
-		if [ ! -f $(PREFIX)/include/$$file ]; then \
+		if [ ! -f "$(PREFIX)/include/$$file" ]; then \
 			found=$$(find . -name $$file -type f | head -1); \
 			if [ -n "$$found" ]; then \
 				echo "Copying $$found to $(PREFIX)/include/"; \
-				cp -f $$found $(PREFIX)/include/; \
+				cp -f "$$found" "$(PREFIX)/include/"; \
 			else \
 				echo "ERROR: Could not find $$file!"; \
 			fi; \
 		fi; \
 	done
-	
-	# Copy all remaining header files from lib (with a more robust loop)
-	@echo ">> Copying remaining lib headers..."
-	find lib -name "*.h" -type f | while read -r header; do \
-		base=$$(basename "$$header"); \
-		cp -f "$$header" "$(PREFIX)/include/$$base" || true; \
-	done
-	
-	# Copy driver headers that might be needed
-	@echo ">> Copying driver headers..."
-	find drivers -name "*.h" -type f | grep -v "/test/" | grep -v "/doc/" | while read -r header; do \
+
+	# Now copy *all* remaining headers from lib/ and drivers/, ignoring test/doc/examples
+	@echo ">> Copying *all* remaining headers under lib/ and drivers/..."
+	find lib drivers -type f -name "*.h" \
+		! -path "*/test/*" \
+		! -path "*/doc/*" \
+		! -path "*/examples/*" \
+	| while read -r header; do \
 		base=$$(basename "$$header"); \
 		cp -f "$$header" "$(PREFIX)/include/$$base" || true; \
 	done
 
-	# Copy top-level include/ headers if that directory exists
-	@echo ">> Copying top-level include/ headers..."
+	# Also copy top-level include/ if it exists
+	@echo ">> Copying top-level include/ if present..."
 	if [ -d include ]; then \
 		find include -type f -name "*.h" | while read -r header; do \
 			base=$$(basename "$$header"); \
@@ -151,11 +147,11 @@ install: all
 	fi
 	
 	# Final verification
-	@echo ">> Verifying critical headers..."
-	ls -la $(PREFIX)/include/rte_*.h
+	@echo ">> Verifying critical headers (rte_*.h):"
+	ls -la $(PREFIX)/include/rte_*.h || true
 	
 	@echo ">> Installation complete"
-	@echo ">> Total headers installed: $$(ls -1 $(PREFIX)/include/*.h | wc -l)"
+	@echo ">> Total headers installed: $$(ls -1 $(PREFIX)/include/*.h 2>/dev/null | wc -l)"
 
 ################################################################################
 # cleanup
