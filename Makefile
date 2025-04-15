@@ -168,7 +168,6 @@ install: all
 	# eal/freebsd
 	@echo ">> Copying eal freebsd headers..."
 	if [ -d lib/eal/freebsd ]; then \
-		# freebsd/eal_alarm_private.h
 		for header in lib/eal/freebsd/*.h; do \
 			cp -f "$$header" "$(PREFIX)/include/" || true; \
 		done; \
