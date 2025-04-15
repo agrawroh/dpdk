@@ -56,8 +56,7 @@ $(TARGET_LIB): $(OBJS)
 ################################################################################
 # install
 ################################################################################
-# We install headers with a structure that supports the simple include style
-# (#include <rte_*.h>) while ensuring all necessary headers are available.
+# We install all headers from nested directories to a flat include structure
 
 install: all
 	@echo ">> Installing to $(PREFIX)"
@@ -65,51 +64,77 @@ install: all
 	# Create required directories
 	mkdir -p $(PREFIX)/lib
 	mkdir -p $(PREFIX)/include
+	mkdir -p $(PREFIX)/include/sys
+	mkdir -p $(PREFIX)/include/netinet
 	
 	# Install static library
 	cp -f $(TARGET_LIB) $(PREFIX)/lib
 	
-	# Install config headers
+	# Copy config headers
+	@echo ">> Copying config headers..."
 	if [ -f config/rte_config.h ]; then \
 		cp -f config/rte_config.h $(PREFIX)/include/; \
 	fi
 	
-	# Copy all critical DPDK header files directly to the include directory
-	# This flattens the hierarchy for simple includes
-	@echo ">> Copying header files from lib/ directories..."
-	find lib -name "*.h" | while read header; do \
+	# Copy ALL header files from lib directory and subdirectories
+	@echo ">> Copying all lib headers..."
+	find lib -type f -name "*.h" | while read header; do \
 		cp -f $$header $(PREFIX)/include/; \
 	done
 	
-	# Copy kernel-specific headers that are needed for sys/queue.h and other system headers
-	if [ -d lib/eal/windows/include/sys ]; then \
-		mkdir -p $(PREFIX)/include/sys; \
-		cp -f lib/eal/windows/include/sys/* $(PREFIX)/include/sys/; \
-	fi
-	
-	if [ -d lib/eal/windows/include/netinet ]; then \
-		mkdir -p $(PREFIX)/include/netinet; \
-		cp -f lib/eal/windows/include/netinet/* $(PREFIX)/include/netinet/; \
-	fi
-	
-	# Install driver-specific headers that might be needed
-	@echo ">> Copying essential driver headers..."
-	for header in $(shell find drivers -name "*.h" | grep -E '(pmd|rte_|public)'); do \
+	# Copy ALL header files from drivers directory and subdirectories
+	@echo ">> Copying all driver headers..."
+	find drivers -type f -name "*.h" | while read header; do \
 		cp -f $$header $(PREFIX)/include/; \
 	done
 	
-	# Create a special verification for the required headers mentioned in the error logs
+	# Copy ALL header files from any other directories that might contain headers
+	@echo ">> Copying any remaining headers..."
+	find . -type f -name "*.h" \
+		! -path "./lib/*" \
+		! -path "./drivers/*" \
+		! -path "./config/*" \
+		! -path "./test/*" \
+		! -path "./doc/*" \
+		! -path "./examples/*" \
+		| while read header; do \
+		cp -f $$header $(PREFIX)/include/; \
+	done
+	
+	# Copy system headers for compatibility
+	@echo ">> Copying system compatibility headers..."
+	# For sys/queue.h and other system headers
+	find . -path "*/include/sys/*.h" | while read header; do \
+		cp -f $$header $(PREFIX)/include/sys/; \
+	done
+	
+	# For netinet headers
+	find . -path "*/include/netinet/*.h" | while read header; do \
+		cp -f $$header $(PREFIX)/include/netinet/; \
+	done
+	
+	# Verify critical headers exist
 	@echo ">> Verifying critical headers..."
 	for header in rte_config.h rte_eal.h rte_ethdev.h rte_mbuf.h rte_version.h; do \
 		if [ ! -f $(PREFIX)/include/$$header ]; then \
-			echo "WARNING: Critical header $$header missing! Finding and copying..."; \
+			echo "WARNING: Critical header $$header not found in flat include. Finding and copying..."; \
 			find . -name $$header -type f | head -1 | xargs -I{} cp {} $(PREFIX)/include/ || echo "ERROR: Could not find $$header!"; \
 		else \
 			echo "✓ Found $$header"; \
 		fi \
 	done
 	
+	# Check if there are any filename collisions and warn
+	@echo ">> Checking for filename collisions..."
+	duplicates=$$(find $(PREFIX)/include -type f -name "*.h" | xargs basename -a | sort | uniq -d); \
+	if [ -n "$$duplicates" ]; then \
+		echo "WARNING: The following filenames appear multiple times and may have been overwritten:"; \
+		echo "$$duplicates"; \
+		echo "Only the last copied version of each file will be used."; \
+	fi
+	
 	@echo ">> Installation complete"
+	@echo ">> Total headers installed: $$(find $(PREFIX)/include -type f -name "*.h" | wc -l)"
 
 ################################################################################
 # cleanup
