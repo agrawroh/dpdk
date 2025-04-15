@@ -84,131 +84,314 @@ install: all
 	# Direct copy of essential headers - avoiding pipes and loops which might fail
 	@echo ">> Directly copying essential headers..."
 	
-	# EAL headers (top-level eal/include/*.h)
+	# EAL headers
 	for header in lib/eal/include/*.h; do \
-		cp -f "$$header" "$(PREFIX)/include/" || true; \
+		cp -f $$header $(PREFIX)/include/ || true; \
+	done
+
+	for header in lib/eal/common/*.h; do \
+		cp -f $$header $(PREFIX)/include/ || true; \
+	done
+
+	for header in lib/eal/linux/*.h; do \
+		cp -f $$header $(PREFIX)/include/ || true; \
+	done
+
+	for header in lib/eal/linux/include/*.h; do \
+		cp -f $$header $(PREFIX)/include/ || true; \
+	done
+
+	for header in lib/eal/include/generic/*.h; do \
+		cp -f $$header $(PREFIX)/include/ || true; \
 	done
 	
 	# Ethdev headers
 	for header in lib/ethdev/*.h; do \
-		cp -f "$$header" "$(PREFIX)/include/" || true; \
+		cp -f $$header $(PREFIX)/include/ || true; \
 	done
 	
 	# Mbuf headers
 	for header in lib/mbuf/*.h; do \
-		cp -f "$$header" "$(PREFIX)/include/" || true; \
+		cp -f $$header $(PREFIX)/include/ || true; \
 	done
 	
 	# Net headers
 	for header in lib/net/*.h; do \
-		cp -f "$$header" "$(PREFIX)/include/" || true; \
+		cp -f $$header $(PREFIX)/include/ || true; \
 	done
 
 	############################################################################
-	# EAL ARCH-SPECIFIC HEADERS (Flatten each subdir inside eal/*)
+	# NEW: Explicitly copy headers from additional DPDK subdirectories
 	############################################################################
+	# For each subdirectory, replicate the pattern above: a for-loop copying *.h
 
-	# eal/loongarch/include
-	@echo ">> Copying eal loongarch headers..."
-	if [ -d lib/eal/loongarch/include ]; then \
-		for header in lib/eal/loongarch/include/*.h; do \
-			cp -f "$$header" "$(PREFIX)/include/" || true; \
-		done; \
-	fi
+	# ACL
+	for header in lib/acl/*.h; do \
+		cp -f $$header $(PREFIX)/include/ || true; \
+	done
 
-	# eal/x86 (some in x86 root, some in x86/include)
-	@echo ">> Copying eal x86 headers..."
-	if [ -d lib/eal/x86 ]; then \
-		for header in lib/eal/x86/*.h; do \
-			cp -f "$$header" "$(PREFIX)/include/" || true; \
-		done; \
-	fi
-	if [ -d lib/eal/x86/include ]; then \
-		for header in lib/eal/x86/include/*.h; do \
-			cp -f "$$header" "$(PREFIX)/include/" || true; \
-		done; \
-	fi
+	# argparse
+	for header in lib/argparse/*.h; do \
+		cp -f $$header $(PREFIX)/include/ || true; \
+	done
 
-	# eal/riscv/include
-	@echo ">> Copying eal riscv headers..."
-	if [ -d lib/eal/riscv/include ]; then \
-		for header in lib/eal/riscv/include/*.h; do \
-			cp -f "$$header" "$(PREFIX)/include/" || true; \
-		done; \
-	fi
+	# bbdev
+	for header in lib/bbdev/*.h; do \
+		cp -f $$header $(PREFIX)/include/ || true; \
+	done
 
-	# eal/arm/include
-	@echo ">> Copying eal arm headers..."
-	if [ -d lib/eal/arm/include ]; then \
-		for header in lib/eal/arm/include/*.h; do \
-			cp -f "$$header" "$(PREFIX)/include/" || true; \
-		done; \
-	fi
+	# bitratestats
+	for header in lib/bitratestats/*.h; do \
+		cp -f $$header $(PREFIX)/include/ || true; \
+	done
 
-	# eal/ppc/include
-	@echo ">> Copying eal ppc headers..."
-	if [ -d lib/eal/ppc/include ]; then \
-		for header in lib/eal/ppc/include/*.h; do \
-			cp -f "$$header" "$(PREFIX)/include/" || true; \
-		done; \
-	fi
+	# bpf
+	for header in lib/bpf/*.h; do \
+		cp -f $$header $(PREFIX)/include/ || true; \
+	done
 
-	# eal/windows
-	@echo ">> Copying eal windows special headers..."
-	# e.g. eal_windows.h at root, plus eal/windows/include/*.h
-	if [ -f lib/eal/windows/eal_windows.h ]; then \
-		cp -f lib/eal/windows/eal_windows.h "$(PREFIX)/include/" || true; \
-	fi
-	if [ -d lib/eal/windows/include ]; then \
-		for header in lib/eal/windows/include/*.h; do \
-			cp -f "$$header" "$(PREFIX)/include/" || true; \
-		done; \
-	fi
+	# cfgfile
+	for header in lib/cfgfile/*.h; do \
+		cp -f $$header $(PREFIX)/include/ || true; \
+	done
 
-	# eal/freebsd
-	@echo ">> Copying eal freebsd headers..."
-	if [ -d lib/eal/freebsd ]; then \
-		for header in lib/eal/freebsd/*.h; do \
-			cp -f "$$header" "$(PREFIX)/include/" || true; \
-		done; \
-	fi
-	if [ -d lib/eal/freebsd/include ]; then \
-		for header in lib/eal/freebsd/include/*.h; do \
-			cp -f "$$header" "$(PREFIX)/include/" || true; \
-		done; \
-	fi
+	# cmdline
+	for header in lib/cmdline/*.h; do \
+		cp -f $$header $(PREFIX)/include/ || true; \
+	done
 
-	# eal/include/generic
-	@echo ">> Copying eal generic headers..."
-	if [ -d lib/eal/include/generic ]; then \
-		for header in lib/eal/include/generic/*.h; do \
-			cp -f "$$header" "$(PREFIX)/include/" || true; \
-		done; \
-	fi
+	# compressdev
+	for header in lib/compressdev/*.h; do \
+		cp -f $$header $(PREFIX)/include/ || true; \
+	done
 
-	# eal/common
-	@echo ">> Copying eal common headers..."
-	if [ -d lib/eal/common ]; then \
-		for header in lib/eal/common/*.h; do \
-			cp -f "$$header" "$(PREFIX)/include/" || true; \
-		done; \
-	fi
+	# cryptodev
+	for header in lib/cryptodev/*.h; do \
+		cp -f $$header $(PREFIX)/include/ || true; \
+	done
 
-	# eal/linux
-	@echo ">> Copying eal linux headers..."
-	if [ -d lib/eal/linux ]; then \
-		for header in lib/eal/linux/*.h; do \
-			cp -f "$$header" "$(PREFIX)/include/" || true; \
-		done; \
-	fi
-	if [ -d lib/eal/linux/include ]; then \
-		for header in lib/eal/linux/include/*.h; do \
-			cp -f "$$header" "$(PREFIX)/include/" || true; \
-		done; \
-	fi
+	# distributor
+	for header in lib/distributor/*.h; do \
+		cp -f $$header $(PREFIX)/include/ || true; \
+	done
+
+	# dmadev
+	for header in lib/dmadev/*.h; do \
+		cp -f $$header $(PREFIX)/include/ || true; \
+	done
+
+	# efd
+	for header in lib/efd/*.h; do \
+		cp -f $$header $(PREFIX)/include/ || true; \
+	done
+
+	# eventdev
+	for header in lib/eventdev/*.h; do \
+		cp -f $$header $(PREFIX)/include/ || true; \
+	done
+
+	# fib
+	for header in lib/fib/*.h; do \
+		cp -f $$header $(PREFIX)/include/ || true; \
+	done
+
+	# graph
+	for header in lib/graph/*.h; do \
+		cp -f $$header $(PREFIX)/include/ || true; \
+	done
+
+	# gpudev
+	for header in lib/gpudev/*.h; do \
+		cp -f $$header $(PREFIX)/include/ || true; \
+	done
+
+	# gro
+	for header in lib/gro/*.h; do \
+		cp -f $$header $(PREFIX)/include/ || true; \
+	done
+
+	# gso
+	for header in lib/gso/*.h; do \
+		cp -f $$header $(PREFIX)/include/ || true; \
+	done
+
+	# hash
+	for header in lib/hash/*.h; do \
+		cp -f $$header $(PREFIX)/include/ || true; \
+	done
+
+	# ip_frag
+	for header in lib/ip_frag/*.h; do \
+		cp -f $$header $(PREFIX)/include/ || true; \
+	done
+
+	# ipsec
+	for header in lib/ipsec/*.h; do \
+		cp -f $$header $(PREFIX)/include/ || true; \
+	done
+
+	# jobstats
+	for header in lib/jobstats/*.h; do \
+		cp -f $$header $(PREFIX)/include/ || true; \
+	done
+
+	# kvargs
+	for header in lib/kvargs/*.h; do \
+		cp -f $$header $(PREFIX)/include/ || true; \
+	done
+
+	# latencystats
+	for header in lib/latencystats/*.h; do \
+		cp -f $$header $(PREFIX)/include/ || true; \
+	done
+
+	# lpm
+	for header in lib/lpm/*.h; do \
+		cp -f $$header $(PREFIX)/include/ || true; \
+	done
+
+	# member
+	for header in lib/member/*.h; do \
+		cp -f $$header $(PREFIX)/include/ || true; \
+	done
+
+	# meter
+	for header in lib/meter/*.h; do \
+		cp -f $$header $(PREFIX)/include/ || true; \
+	done
+
+	# mempool
+	for header in lib/mempool/*.h; do \
+		cp -f $$header $(PREFIX)/include/ || true; \
+	done
+
+	# metrics
+	for header in lib/metrics/*.h; do \
+		cp -f $$header $(PREFIX)/include/ || true; \
+	done
+
+	# mldev
+	for header in lib/mldev/*.h; do \
+		cp -f $$header $(PREFIX)/include/ || true; \
+	done
+
+	# node
+	for header in lib/node/*.h; do \
+		cp -f $$header $(PREFIX)/include/ || true; \
+	done
+
+	# pci
+	for header in lib/pci/*.h; do \
+		cp -f $$header $(PREFIX)/include/ || true; \
+	done
+
+	# pdcp
+	for header in lib/pdcp/*.h; do \
+		cp -f $$header $(PREFIX)/include/ || true; \
+	done
+
+	# pipeline
+	for header in lib/pipeline/*.h; do \
+		cp -f $$header $(PREFIX)/include/ || true; \
+	done
+
+	# port
+	for header in lib/port/*.h; do \
+		cp -f $$header $(PREFIX)/include/ || true; \
+	done
+
+	# power
+	for header in lib/power/*.h; do \
+		cp -f $$header $(PREFIX)/include/ || true; \
+	done
+
+	# ptr_compress
+	for header in lib/ptr_compress/*.h; do \
+		cp -f $$header $(PREFIX)/include/ || true; \
+	done
+
+	# rawdev
+	for header in lib/rawdev/*.h; do \
+		cp -f $$header $(PREFIX)/include/ || true; \
+	done
+
+	# reorder
+	for header in lib/reorder/*.h; do \
+		cp -f $$header $(PREFIX)/include/ || true; \
+	done
+
+	# rib
+	for header in lib/rib/*.h; do \
+		cp -f $$header $(PREFIX)/include/ || true; \
+	done
+
+	# ring
+	for header in lib/ring/*.h; do \
+		cp -f $$header $(PREFIX)/include/ || true; \
+	done
+
+	# rcu
+	for header in lib/rcu/*.h; do \
+		cp -f $$header $(PREFIX)/include/ || true; \
+	done
+
+	# regexdev
+	for header in lib/regexdev/*.h; do \
+		cp -f $$header $(PREFIX)/include/ || true; \
+	done
+
+	# sched
+	for header in lib/sched/*.h; do \
+		cp -f $$header $(PREFIX)/include/ || true; \
+	done
+
+	# security
+	for header in lib/security/*.h; do \
+		cp -f $$header $(PREFIX)/include/ || true; \
+	done
+
+	# stack
+	for header in lib/stack/*.h; do \
+		cp -f $$header $(PREFIX)/include/ || true; \
+	done
+
+	# table
+	for header in lib/table/*.h; do \
+		cp -f $$header $(PREFIX)/include/ || true; \
+	done
+
+	# telemetry
+	for header in lib/telemetry/*.h; do \
+		cp -f $$header $(PREFIX)/include/ || true; \
+	done
+
+	# timer
+	for header in lib/timer/*.h; do \
+		cp -f $$header $(PREFIX)/include/ || true; \
+	done
+
+	# vhost
+	for header in lib/vhost/*.h; do \
+		cp -f $$header $(PREFIX)/include/ || true; \
+	done
+
+	# pcapng
+	for header in lib/pcapng/*.h; do \
+		cp -f $$header $(PREFIX)/include/ || true; \
+	done
+
+	# log
+	for header in lib/log/*.h; do \
+		cp -f $$header $(PREFIX)/include/ || true; \
+	done
+
+	# dispatcher
+	for header in lib/dispatcher/*.h; do \
+		cp -f $$header $(PREFIX)/include/ || true; \
+	done
 
 	############################################################################
-	# End EAL arch-specific section
+	# End new subdirectory block
 	############################################################################
 	
 	# Copy system headers
@@ -230,8 +413,8 @@ install: all
 				cp -f $$found $(PREFIX)/include/; \
 			else \
 				echo "ERROR: Could not find $$file!"; \
-			fi; \
-		fi; \
+			fi \
+		fi \
 	done
 	
 	# Copy all remaining header files from lib (with a more robust loop)
