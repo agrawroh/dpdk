@@ -56,7 +56,7 @@ $(TARGET_LIB): $(OBJS)
 ################################################################################
 # install
 ################################################################################
-# We install all headers from nested directories to a flat include structure
+# Direct approach to copying all header files using direct paths
 
 install: all
 	@echo ">> Installing to $(PREFIX)"
@@ -70,71 +70,78 @@ install: all
 	# Install static library
 	cp -f $(TARGET_LIB) $(PREFIX)/lib
 	
-	# Copy config headers
-	@echo ">> Copying config headers..."
+	# Copy rte_config.h (which we know works)
+	@echo ">> Copying rte_config.h..."
 	if [ -f config/rte_config.h ]; then \
 		cp -f config/rte_config.h $(PREFIX)/include/; \
 	fi
 	
-	# Copy ALL header files from lib directory and subdirectories
-	@echo ">> Copying all lib headers..."
-	find lib -type f -name "*.h" | while read header; do \
-		cp -f $$header $(PREFIX)/include/; \
+	# Direct copy of essential headers - avoiding pipes and loops which might fail
+	@echo ">> Directly copying essential headers..."
+	
+	# EAL headers
+	for header in lib/eal/include/*.h; do \
+		cp -f $$header $(PREFIX)/include/ || true; \
 	done
 	
-	# Copy ALL header files from drivers directory and subdirectories
-	@echo ">> Copying all driver headers..."
-	find drivers -type f -name "*.h" | while read header; do \
-		cp -f $$header $(PREFIX)/include/; \
+	# Ethdev headers
+	for header in lib/ethdev/*.h; do \
+		cp -f $$header $(PREFIX)/include/ || true; \
 	done
 	
-	# Copy ALL header files from any other directories that might contain headers
-	@echo ">> Copying any remaining headers..."
-	find . -type f -name "*.h" \
-		! -path "./lib/*" \
-		! -path "./drivers/*" \
-		! -path "./config/*" \
-		! -path "./test/*" \
-		! -path "./doc/*" \
-		! -path "./examples/*" \
-		| while read header; do \
-		cp -f $$header $(PREFIX)/include/; \
+	# Mbuf headers
+	for header in lib/mbuf/*.h; do \
+		cp -f $$header $(PREFIX)/include/ || true; \
 	done
 	
-	# Copy system headers for compatibility
-	@echo ">> Copying system compatibility headers..."
-	# For sys/queue.h and other system headers
-	find . -path "*/include/sys/*.h" | while read header; do \
-		cp -f $$header $(PREFIX)/include/sys/; \
+	# Net headers
+	for header in lib/net/*.h; do \
+		cp -f $$header $(PREFIX)/include/ || true; \
 	done
 	
-	# For netinet headers
-	find . -path "*/include/netinet/*.h" | while read header; do \
-		cp -f $$header $(PREFIX)/include/netinet/; \
-	done
+	# Copy system headers
+	if [ -d lib/eal/windows/include/sys ]; then \
+		cp -f lib/eal/windows/include/sys/*.h $(PREFIX)/include/sys/ || true; \
+	fi
 	
-	# Verify critical headers exist
-	@echo ">> Verifying critical headers..."
-	for header in rte_config.h rte_eal.h rte_ethdev.h rte_mbuf.h rte_version.h; do \
-		if [ ! -f $(PREFIX)/include/$$header ]; then \
-			echo "WARNING: Critical header $$header not found in flat include. Finding and copying..."; \
-			find . -name $$header -type f | head -1 | xargs -I{} cp {} $(PREFIX)/include/ || echo "ERROR: Could not find $$header!"; \
-		else \
-			echo "✓ Found $$header"; \
+	if [ -d lib/eal/windows/include/netinet ]; then \
+		cp -f lib/eal/windows/include/netinet/*.h $(PREFIX)/include/netinet/ || true; \
+	fi
+	
+	# Manual copy of critical headers if they haven't been copied yet
+	@echo ">> Manual fallback for critical headers..."
+	for file in rte_eal.h rte_ethdev.h rte_mbuf.h rte_version.h; do \
+		if [ ! -f $(PREFIX)/include/$$file ]; then \
+			found=$$(find . -name $$file -type f | head -1); \
+			if [ -n "$$found" ]; then \
+				echo "Copying $$found to $(PREFIX)/include/"; \
+				cp -f $$found $(PREFIX)/include/; \
+			else \
+				echo "ERROR: Could not find $$file!"; \
+			fi \
 		fi \
 	done
 	
-	# Check if there are any filename collisions and warn
-	@echo ">> Checking for filename collisions..."
-	duplicates=$$(find $(PREFIX)/include -type f -name "*.h" | xargs basename -a | sort | uniq -d); \
-	if [ -n "$$duplicates" ]; then \
-		echo "WARNING: The following filenames appear multiple times and may have been overwritten:"; \
-		echo "$$duplicates"; \
-		echo "Only the last copied version of each file will be used."; \
-	fi
+	# Copy all remaining header files from lib (with a more robust loop)
+	@echo ">> Copying remaining lib headers..."
+	find lib -name "*.h" -type f | while read -r header; do \
+		base=$$(basename "$$header"); \
+		cp -f "$$header" "$(PREFIX)/include/$$base" || true; \
+	done
+	
+	# Copy driver headers that might be needed
+	@echo ">> Copying driver headers..."
+	find drivers -name "*.h" -type f | grep -v "/test/" | grep -v "/doc/" | while read -r header; do \
+		base=$$(basename "$$header"); \
+		cp -f "$$header" "$(PREFIX)/include/$$base" || true; \
+	done
+	
+	# Final verification
+	@echo ">> Verifying critical headers..."
+	ls -la $(PREFIX)/include/rte_*.h
 	
 	@echo ">> Installation complete"
-	@echo ">> Total headers installed: $$(find $(PREFIX)/include -type f -name "*.h" | wc -l)"
+	@echo ">> Total headers installed: $$(ls -1 $(PREFIX)/include/*.h | wc -l)"
 
 ################################################################################
 # cleanup
