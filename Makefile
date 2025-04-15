@@ -1,50 +1,66 @@
-# SPDX-License-Identifier: BSD-3-Clause
-# Copyright(c) 2010-2014 Intel Corporation
+################################################################################
+# Minimal/Legacy-Style Makefile for building DPDK libraries
+# Warning: For DPDK >= 21.x you will need to adapt/patch code!
+################################################################################
 
-# binary name
-APP = rss_helper
+# Adjust as needed
+RTE_TARGET ?= x86_64-native-linux-gcc
+RTE_SDK    ?= $(CURDIR)
 
-# all source are stored in SRCS-y
-SRCS-y := test.cpp
+# Common flags (adjust to match your environment)
+CFLAGS     = -O3 -g -fPIC -Wall -Werror
+INCFLAGS   = -I$(RTE_SDK) -I$(RTE_SDK)/$(RTE_TARGET)/include
 
-# Define RTE_SDK if not already defined
-ifeq ($(RTE_SDK),)
-RTE_SDK = /build/bazel_root/base/sandbox/processwrapper-sandbox/1/execroot/envoy
-endif
+# DPDK libraries often require extra flags
+# e.g., -march=native or -mavx512f for some vector code
+# Add any required flags here:
+DPDK_CFLAGS = 
 
-# Define RTE_TARGET if not already defined
-RTE_TARGET ?= x86_64-native-linuxapp-gcc
+# For linking; might need many more libs depending on config
+LDLIBS      = -lm -lpthread -ldl
 
-# Include path for DPDK headers
-DPDK_INCLUDE_PATH ?= $(RTE_SDK)/include
-EXTRA_INCLUDE_PATH ?= $(RTE_SDK)/dpdk/include
+# If you are building with NUMA support, hugepage support, etc., you might need:
+# -lnuma -lrte_eal -lrte_mempool -lrte_ring - ... etc.
 
-# Set compiler to match the Bazel environment
-CC = $(CXX)
+# Subdirectories that build DPDK components (example from older structure)
+SUBDIRS = lib drivers
 
-# Basic flags for C++ compilation
-BASE_CFLAGS = -O3 -DALLOW_EXPERIMENTAL_API -std=c++11
-BASE_CFLAGS += -I$(DPDK_INCLUDE_PATH) -I$(EXTRA_INCLUDE_PATH)
+# The final “build all” target
+all: config $(SUBDIRS)
 
-# Add flags from the Bazel build environment
-CFLAGS += $(BASE_CFLAGS) $(CXXFLAGS)
-# Remove C-specific warning flags that don't apply to C++
-CFLAGS := $(filter-out -Wstrict-prototypes -Wmissing-prototypes -Wold-style-definition -Wnested-externs,$(CFLAGS))
+# The old 'make config' concept—use a .config file or environment variables
+# For demonstration, this is a placeholder
+config:
+	@echo ">> Using target: $(RTE_TARGET)"
+	@mkdir -p $(RTE_TARGET)/build
+	@touch $(RTE_TARGET)/.config
+	@echo ">> (Optional) Generate config headers or set environment variables here"
+	@echo ">> This is a placeholder that you must adapt to your system."
 
-# Linking flags
-LDFLAGS += -lstdc++
+# Build each subdir in sequence
+$(SUBDIRS):
+	$(MAKE) -C $@ RTE_SDK=$(RTE_SDK) RTE_TARGET=$(RTE_TARGET) \
+	        CFLAGS="$(CFLAGS) $(DPDK_CFLAGS) $(INCFLAGS)" \
+	        LDLIBS="$(LDLIBS)"
 
-# Object files
-OBJS = $(patsubst %.cpp,%.o,$(SRCS-y))
-
-# Build rules
-all: $(APP)
-
-$(APP): $(OBJS)
-	$(CC) -o $@ $(OBJS) $(LDFLAGS)
-
-%.o: %.cpp
-	$(CC) $(CFLAGS) -c $< -o $@
+# Example subdir Makefile snippet (e.g. dpdk/lib/Makefile):
+# 
+#   LIB_SRCS = rte_eal.c rte_memory.c ...
+#   LIB_OBJS = $(LIB_SRCS:.c=.o)
+# 
+#   all: libdpdk.a
+# 
+#   libdpdk.a: $(LIB_OBJS)
+#       ar rcs $@ $^
+# 
+#   %.o: %.c
+#       $(CC) $(CFLAGS) -c $< -o $@
+# 
+#   clean:
+#       rm -f $(LIB_OBJS) libdpdk.a
+# 
 
 clean:
-	rm -f $(APP) $(OBJS)
+	rm -rf $(RTE_TARGET) */*.o */*.a
+
+.PHONY: all config clean $(SUBDIRS)
