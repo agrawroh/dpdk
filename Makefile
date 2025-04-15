@@ -106,7 +106,7 @@ install: all
 	done
 
 	for header in lib/eal/include/generic/*.h; do \
-		cp -f $$header $(PREFIX)/include/generic/ || true; \
+		cp -f $$header $(PREFIX)/generic/ || true; \
 	done
 
 	# Ethdev headers
