@@ -1,66 +1,67 @@
 ################################################################################
-# Minimal/Legacy-Style Makefile for building DPDK libraries
-# Warning: For DPDK >= 21.x you will need to adapt/patch code!
+# Monolithic Makefile for Modern DPDK (Unofficial, Example Only)
 ################################################################################
 
-# Adjust as needed
-RTE_TARGET ?= x86_64-native-linux-gcc
-RTE_SDK    ?= $(CURDIR)
+# 1) Toolchain commands (override via environment if needed)
+CC      ?= gcc
+AR      ?= ar
+LD      ?= ld
 
-# Common flags (adjust to match your environment)
-CFLAGS     = -O3 -g -fPIC -Wall -Werror
-INCFLAGS   = -I$(RTE_SDK) -I$(RTE_SDK)/$(RTE_TARGET)/include
+# 2) Basic CFLAGS
+#    Tweak as needed for your environment, CPU type, and warnings
+CFLAGS  ?= -O3 -g -fPIC -Wall -Werror
+# 3) Additional DPDK-specific flags or defines
+#    Add things like -mavx2, -march=native, or -DRTE_XXXX if needed.
+DPDK_CFLAGS ?= -Wno-deprecated-declarations -D_GNU_SOURCE
+# 4) Include paths
+#    Adjust according to where your DPDK headers live.
+INCLUDES  ?= -I$(CURDIR) -I$(CURDIR)/include
 
-# DPDK libraries often require extra flags
-# e.g., -march=native or -mavx512f for some vector code
-# Add any required flags here:
-DPDK_CFLAGS = 
+# 5) Libraries required at link time. 
+#    You may need -lnuma, -lrt, -lpcap, or others depending on your drivers.
+LDLIBS   ?= -lm -lpthread -ldl
 
-# For linking; might need many more libs depending on config
-LDLIBS      = -lm -lpthread -ldl
+# 6) If you want to produce a static library, specify it here:
+TARGET_LIB ?= libdpdk.a
 
-# If you are building with NUMA support, hugepage support, etc., you might need:
-# -lnuma -lrte_eal -lrte_mempool -lrte_ring - ... etc.
+# 7) Gather all .c files under lib/ and drivers/, excluding test, doc, or example code
+C_SRCS = $(shell find lib drivers -type f -name '*.c' \
+          ! -path '*/test/*' \
+          ! -path '*/doc/*' \
+          ! -path '*/examples/*')
 
-# Subdirectories that build DPDK components (example from older structure)
-SUBDIRS = lib drivers
+# 8) Convert each .c file into a corresponding .o object file
+OBJS = $(C_SRCS:.c=.o)
 
-# The final “build all” target
-all: config $(SUBDIRS)
+################################################################################
+# Top-level build targets
+################################################################################
 
-# The old 'make config' concept—use a .config file or environment variables
-# For demonstration, this is a placeholder
+.PHONY: all clean config
+
+all: config $(TARGET_LIB)
+
+# Optional "config" step (placeholder). In older DPDK builds, you’d generate
+# config headers or detect CPU flags. Here it just prints a note:
 config:
-	@echo ">> Using target: $(RTE_TARGET)"
-	@mkdir -p $(RTE_TARGET)/build
-	@touch $(RTE_TARGET)/.config
-	@echo ">> (Optional) Generate config headers or set environment variables here"
-	@echo ">> This is a placeholder that you must adapt to your system."
+	@echo ">> No real config. If needed, generate rte_config.h or detect CPU features."
 
-# Build each subdir in sequence
-$(SUBDIRS):
-	$(MAKE) -C $@ RTE_SDK=$(RTE_SDK) RTE_TARGET=$(RTE_TARGET) \
-	        CFLAGS="$(CFLAGS) $(DPDK_CFLAGS) $(INCFLAGS)" \
-	        LDLIBS="$(LDLIBS)"
+# Build the static library from all .o files
+$(TARGET_LIB): $(OBJS)
+	@echo "  [AR] $@"
+	$(AR) rcs $@ $^
 
-# Example subdir Makefile snippet (e.g. dpdk/lib/Makefile):
-# 
-#   LIB_SRCS = rte_eal.c rte_memory.c ...
-#   LIB_OBJS = $(LIB_SRCS:.c=.o)
-# 
-#   all: libdpdk.a
-# 
-#   libdpdk.a: $(LIB_OBJS)
-#       ar rcs $@ $^
-# 
-#   %.o: %.c
-#       $(CC) $(CFLAGS) -c $< -o $@
-# 
-#   clean:
-#       rm -f $(LIB_OBJS) libdpdk.a
-# 
+################################################################################
+# Object file compilation rules
+################################################################################
+
+%.o: %.c
+	@echo "  [CC] $<"
+	$(CC) $(CFLAGS) $(DPDK_CFLAGS) $(INCLUDES) -c $< -o $@
+
+################################################################################
+# Cleanup
+################################################################################
 
 clean:
-	rm -rf $(RTE_TARGET) */*.o */*.a
-
-.PHONY: all config clean $(SUBDIRS)
+	rm -f $(OBJS) $(TARGET_LIB)
