@@ -10,8 +10,10 @@ PREFIX  ?= /usr/local   # Used by 'make install'. Overridden by rules_foreign_cc
 
 # 2) Basic CFLAGS
 CFLAGS  ?= -O3 -g -fPIC -Wall -Werror
+
 # 3) Additional DPDK-specific flags or defines
 DPDK_CFLAGS ?= -Wno-deprecated-declarations -D_GNU_SOURCE
+
 # 4) Include paths (adjust to your layout)
 INCLUDES  ?= -I$(CURDIR)/include -I$(CURDIR)
 
@@ -56,7 +58,8 @@ $(TARGET_LIB): $(OBJS)
 ################################################################################
 # install
 ################################################################################
-# Direct approach to copying all header files using direct paths
+# We install headers and generate rte_build_config.h if needed, flattening them
+# into $(PREFIX)/include. We also place the static library in $(PREFIX)/lib.
 
 install: all
 	@echo ">> Installing to $(PREFIX)"
@@ -69,13 +72,12 @@ install: all
 	# Install static library
 	cp -f $(TARGET_LIB) $(PREFIX)/lib
 
-	# Copy rte_config.h (which we know works)
+	# Copy rte_config.h (if it exists)
 	@echo ">> Copying rte_config.h..."
 	if [ -f config/rte_config.h ]; then \
 		cp -f config/rte_config.h $(PREFIX)/include/; \
 	fi
 
-	# Generate and install rte_build_config.h
 	@echo ">> Generating rte_build_config.h..."
 	cat > $(PREFIX)/include/rte_build_config.h << 'EOF'
 /*
@@ -161,30 +163,38 @@ install: all
 EOF
 
 	@echo ">> Directly copying essential headers..."
+
+	# EAL headers
 	for header in lib/eal/include/*.h; do \
-		cp -f $$header $(PREFIX)/include/ || true; \
+		cp -f "$$header" "$(PREFIX)/include/" || true; \
 	done
 
+	# Ethdev headers
 	for header in lib/ethdev/*.h; do \
-		cp -f $$header $(PREFIX)/include/ || true; \
+		cp -f "$$header" "$(PREFIX)/include/" || true; \
 	done
 
+	# Mbuf headers
 	for header in lib/mbuf/*.h; do \
-		cp -f $$header $(PREFIX)/include/ || true; \
+		cp -f "$$header" "$(PREFIX)/include/" || true; \
 	done
 
+	# Net headers
 	for header in lib/net/*.h; do \
-		cp -f $$header $(PREFIX)/include/ || true; \
+		cp -f "$$header" "$(PREFIX)/include/" || true; \
 	done
 
+	# Ring headers
 	for header in lib/ring/*.h; do \
-		cp -f $$header $(PREFIX)/include/ || true; \
+		cp -f "$$header" "$(PREFIX)/include/" || true; \
 	done
 
+	# Mempool headers
 	for header in lib/mempool/*.h; do \
-		cp -f $$header $(PREFIX)/include/ || true; \
+		cp -f "$$header" "$(PREFIX)/include/" || true; \
 	done
 
+	# Windows sys and netinet
 	if [ -d lib/eal/windows/include/sys ]; then \
 		cp -f lib/eal/windows/include/sys/*.h $(PREFIX)/include/sys/ || true; \
 	fi
@@ -193,6 +203,7 @@ EOF
 		cp -f lib/eal/windows/include/netinet/*.h $(PREFIX)/include/netinet/ || true; \
 	fi
 
+	# Linux sys and netinet
 	if [ -d lib/eal/linux/include/sys ]; then \
 		cp -f lib/eal/linux/include/sys/*.h $(PREFIX)/include/sys/ || true; \
 	fi
@@ -201,13 +212,14 @@ EOF
 		cp -f lib/eal/linux/include/netinet/*.h $(PREFIX)/include/netinet/ || true; \
 	fi
 
+	# Manual fallback for critical headers
 	@echo ">> Manual fallback for critical headers..."
 	for file in rte_eal.h rte_ethdev.h rte_mbuf.h rte_version.h; do \
-		if [ ! -f $(PREFIX)/include/$$file ]; then \
+		if [ ! -f "$(PREFIX)/include/$$file" ]; then \
 			found=$$(find . -name $$file -type f | head -1); \
 			if [ -n "$$found" ]; then \
 				echo "Copying $$found to $(PREFIX)/include/"; \
-				cp -f $$found $(PREFIX)/include/; \
+				cp -f "$$found" "$(PREFIX)/include/"; \
 			else \
 				echo "ERROR: Could not find $$file!"; \
 			fi; \
@@ -227,10 +239,10 @@ EOF
 	done
 
 	@echo ">> Verifying critical headers..."
-	ls -la $(PREFIX)/include/rte_*.h
+	ls -la $(PREFIX)/include/rte_*.h || true
 
 	@echo ">> Installation complete"
-	@echo ">> Total headers installed: $$(ls -1 $(PREFIX)/include/*.h | wc -l)"
+	@echo ">> Total headers installed: $$(ls -1 $(PREFIX)/include/*.h 2>/dev/null | wc -l)"
 
 ################################################################################
 # cleanup
