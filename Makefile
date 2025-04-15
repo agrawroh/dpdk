@@ -119,7 +119,6 @@ install: all
 	# eal/x86 (some in x86 root, some in x86/include)
 	@echo ">> Copying eal x86 headers..."
 	if [ -d lib/eal/x86 ]; then \
-		# eal/x86/*.h
 		for header in lib/eal/x86/*.h; do \
 			cp -f "$$header" "$(PREFIX)/include/" || true; \
 		done; \
