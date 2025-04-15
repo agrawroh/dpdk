@@ -104,10 +104,6 @@ install: all
 	for header in lib/eal/include/generic/*.h; do \
 		cp -f $$header $(PREFIX)/include/ || true; \
 	done
-
-	for header in lib/eal/include/generic/*.h; do \
-		cp -f $$header $(PREFIX)/include/generic/ || true; \
-	done
 	
 	# Ethdev headers
 	for header in lib/ethdev/*.h; do \
@@ -391,6 +387,14 @@ install: all
 
 	# dispatcher
 	for header in lib/dispatcher/*.h; do \
+		cp -f $$header $(PREFIX)/include/ || true; \
+	done
+
+	for header in lib/eal/x86/*.h; do \
+		cp -f $$header $(PREFIX)/include/ || true; \
+	done
+
+	for header in lib/eal/x86/include/*.h; do \
 		cp -f $$header $(PREFIX)/include/ || true; \
 	done
 
