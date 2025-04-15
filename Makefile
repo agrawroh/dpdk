@@ -75,6 +75,11 @@ install: all
 	if [ -f config/rte_config.h ]; then \
 		cp -f config/rte_config.h $(PREFIX)/include/; \
 	fi
+
+	@echo ">> Copying rte_build_config.h..."
+	if [ -f config/rte_build_config.h ]; then \
+		cp -f config/rte_build_config.h $(PREFIX)/include/; \
+	fi
 	
 	# Direct copy of essential headers - avoiding pipes and loops which might fail
 	@echo ">> Directly copying essential headers..."
