@@ -56,9 +56,8 @@ $(TARGET_LIB): $(OBJS)
 ################################################################################
 # install
 ################################################################################
-# We copy:
-#   - The static library to $(PREFIX)/lib
-#   - All headers from all relevant locations to $(PREFIX)/include
+# We install headers with a structure that supports the simple include style
+# (#include <rte_*.h>) while ensuring all necessary headers are available.
 
 install: all
 	@echo ">> Installing to $(PREFIX)"
@@ -70,34 +69,43 @@ install: all
 	# Install static library
 	cp -f $(TARGET_LIB) $(PREFIX)/lib
 	
-	# Copy top-level include/ directory if it exists
-	if [ -d include ]; then \
-	  cp -R include/* $(PREFIX)/include/; \
+	# Install config headers
+	if [ -f config/rte_config.h ]; then \
+		cp -f config/rte_config.h $(PREFIX)/include/; \
 	fi
 	
-	# Copy config headers
-	if [ -d config ]; then \
-	  cp -f config/rte_config.h $(PREFIX)/include/; \
-	fi
-	
-	# Find and copy all header files from lib/ directories
+	# Copy all critical DPDK header files directly to the include directory
+	# This flattens the hierarchy for simple includes
 	@echo ">> Copying header files from lib/ directories..."
-	find lib -type f -name "*.h" | while read header; do \
-		install -D -m 644 $$header $(PREFIX)/include/$$(basename $$header); \
+	find lib -name "*.h" | while read header; do \
+		cp -f $$header $(PREFIX)/include/; \
 	done
 	
-	# Find and copy all header files from drivers/ directories that might be needed
-	@echo ">> Copying header files from drivers/ directories..."
-	find drivers -type f -name "*.h" | grep -v "/test/" | grep -v "/doc/" | while read header; do \
-		install -D -m 644 $$header $(PREFIX)/include/$$(basename $$header); \
+	# Copy kernel-specific headers that are needed for sys/queue.h and other system headers
+	if [ -d lib/eal/windows/include/sys ]; then \
+		mkdir -p $(PREFIX)/include/sys; \
+		cp -f lib/eal/windows/include/sys/* $(PREFIX)/include/sys/; \
+	fi
+	
+	if [ -d lib/eal/windows/include/netinet ]; then \
+		mkdir -p $(PREFIX)/include/netinet; \
+		cp -f lib/eal/windows/include/netinet/* $(PREFIX)/include/netinet/; \
+	fi
+	
+	# Install driver-specific headers that might be needed
+	@echo ">> Copying essential driver headers..."
+	for header in $(shell find drivers -name "*.h" | grep -E '(pmd|rte_|public)'); do \
+		cp -f $$header $(PREFIX)/include/; \
 	done
 	
-	# Ensure key headers are present (the ones needed by Envoy)
-	@echo ">> Checking for key headers..."
+	# Create a special verification for the required headers mentioned in the error logs
+	@echo ">> Verifying critical headers..."
 	for header in rte_config.h rte_eal.h rte_ethdev.h rte_mbuf.h rte_version.h; do \
 		if [ ! -f $(PREFIX)/include/$$header ]; then \
-			echo "WARNING: Key header $$header not found. Manually locating and copying..."; \
+			echo "WARNING: Critical header $$header missing! Finding and copying..."; \
 			find . -name $$header -type f | head -1 | xargs -I{} cp {} $(PREFIX)/include/ || echo "ERROR: Could not find $$header!"; \
+		else \
+			echo "✓ Found $$header"; \
 		fi \
 	done
 	
