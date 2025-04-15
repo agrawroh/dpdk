@@ -58,21 +58,50 @@ $(TARGET_LIB): $(OBJS)
 ################################################################################
 # We copy:
 #   - The static library to $(PREFIX)/lib
-#   - All headers from include/ to $(PREFIX)/include
-#
-# If your DPDK headers live elsewhere, adjust accordingly.
+#   - All headers from all relevant locations to $(PREFIX)/include
 
 install: all
 	@echo ">> Installing to $(PREFIX)"
+	
+	# Create required directories
 	mkdir -p $(PREFIX)/lib
+	mkdir -p $(PREFIX)/include
+	
+	# Install static library
 	cp -f $(TARGET_LIB) $(PREFIX)/lib
-	# Copy top-level include/ directory
+	
+	# Copy top-level include/ directory if it exists
 	if [ -d include ]; then \
-	  mkdir -p $(PREFIX)/include; \
 	  cp -R include/* $(PREFIX)/include/; \
 	fi
-	# If you want to copy any other headers from subdirectories:
-	# e.g. cp -R lib/some_module/include/* $(PREFIX)/include
+	
+	# Copy config headers
+	if [ -d config ]; then \
+	  cp -f config/rte_config.h $(PREFIX)/include/; \
+	fi
+	
+	# Find and copy all header files from lib/ directories
+	@echo ">> Copying header files from lib/ directories..."
+	find lib -type f -name "*.h" | while read header; do \
+		install -D -m 644 $$header $(PREFIX)/include/$$(basename $$header); \
+	done
+	
+	# Find and copy all header files from drivers/ directories that might be needed
+	@echo ">> Copying header files from drivers/ directories..."
+	find drivers -type f -name "*.h" | grep -v "/test/" | grep -v "/doc/" | while read header; do \
+		install -D -m 644 $$header $(PREFIX)/include/$$(basename $$header); \
+	done
+	
+	# Ensure key headers are present (the ones needed by Envoy)
+	@echo ">> Checking for key headers..."
+	for header in rte_config.h rte_eal.h rte_ethdev.h rte_mbuf.h rte_version.h; do \
+		if [ ! -f $(PREFIX)/include/$$header ]; then \
+			echo "WARNING: Key header $$header not found. Manually locating and copying..."; \
+			find . -name $$header -type f | head -1 | xargs -I{} cp {} $(PREFIX)/include/ || echo "ERROR: Could not find $$header!"; \
+		fi \
+	done
+	
+	@echo ">> Installation complete"
 
 ################################################################################
 # cleanup
