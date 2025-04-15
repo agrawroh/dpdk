@@ -5,74 +5,46 @@
 APP = rss_helper
 
 # all source are stored in SRCS-y
-# SRCS-y := main.c
 SRCS-y := test.cpp
 
-# Build using pkg-config variables if possible
-ifeq ($(shell pkg-config --exists libdpdk && echo 0),0)
+# Define RTE_SDK if not already defined
+ifeq ($(RTE_SDK),)
+RTE_SDK = /build/bazel_root/base/sandbox/processwrapper-sandbox/1/execroot/envoy
+endif
 
-all: shared
-# all: static
-.PHONY: shared static
-shared: build/$(APP)-shared
-	ln -sf $(APP)-shared build/$(APP)
-static: build/$(APP)-static
-	ln -sf $(APP)-static build/$(APP)
+# Define RTE_TARGET if not already defined
+RTE_TARGET ?= x86_64-native-linuxapp-gcc
 
-PKGCONF ?= pkg-config
+# Include path for DPDK headers
+DPDK_INCLUDE_PATH ?= $(RTE_SDK)/include
+EXTRA_INCLUDE_PATH ?= $(RTE_SDK)/dpdk/include
 
-PC_FILE := $(shell $(PKGCONF) --path libdpdk 2>/dev/null)
-# Set compiler to g++ for C++ files
-CC = g++
-CFLAGS += -O3 $(shell $(PKGCONF) --cflags libdpdk)
+# Set compiler to match the Bazel environment
+CC = $(CXX)
+
+# Basic flags for C++ compilation
+BASE_CFLAGS = -O3 -DALLOW_EXPERIMENTAL_API -std=c++11
+BASE_CFLAGS += -I$(DPDK_INCLUDE_PATH) -I$(EXTRA_INCLUDE_PATH)
+
+# Add flags from the Bazel build environment
+CFLAGS += $(BASE_CFLAGS) $(CXXFLAGS)
 # Remove C-specific warning flags that don't apply to C++
 CFLAGS := $(filter-out -Wstrict-prototypes -Wmissing-prototypes -Wold-style-definition -Wnested-externs,$(CFLAGS))
-# Add proper linking for C++ standard library
-LDFLAGS_SHARED = $(shell $(PKGCONF) --libs libdpdk) -lstdc++
-LDFLAGS_STATIC = $(shell $(PKGCONF) --static --libs libdpdk) -lstdc++
 
-build/$(APP)-shared: $(SRCS-y) Makefile $(PC_FILE) | build
-	$(CC) $(CFLAGS) $(SRCS-y) -o $@ $(LDFLAGS) $(LDFLAGS_SHARED)
+# Linking flags
+LDFLAGS += -lstdc++
 
-build/$(APP)-static: $(SRCS-y) Makefile $(PC_FILE) | build
-	$(CC) $(CFLAGS) $(SRCS-y) -o $@ $(LDFLAGS) $(LDFLAGS_STATIC)
+# Object files
+OBJS = $(patsubst %.cpp,%.o,$(SRCS-y))
 
-build:
-	@mkdir -p $@
+# Build rules
+all: $(APP)
 
-.PHONY: clean
+$(APP): $(OBJS)
+	$(CC) -o $@ $(OBJS) $(LDFLAGS)
+
+%.o: %.cpp
+	$(CC) $(CFLAGS) -c $< -o $@
+
 clean:
-	rm -f build/$(APP) build/$(APP)-static build/$(APP)-shared
-	test -d build && rmdir -p build || true
-
-else
-
-ifeq ($(RTE_SDK),)
-$(error "Please define RTE_SDK environment variable")
-endif
-
-# Default target, detect a build directory, by looking for a path with a .config
-RTE_TARGET ?= $(notdir $(abspath $(dir $(firstword $(wildcard $(RTE_SDK)/*/.config)))))
-
-include $(RTE_SDK)/mk/rte.vars.mk
-
-# Set C++ compiler explicitly
-CC = g++
-
-# C++ flags
-CXXFLAGS += -O3
-CXXFLAGS += $(filter-out -Wstrict-prototypes -Wmissing-prototypes -Wold-style-definition -Wnested-externs,$(WERROR_FLAGS))
-CXXFLAGS += -DALLOW_EXPERIMENTAL_API
-CXXFLAGS += -std=c++11
-
-# C flags (filtered to remove C-specific warnings)
-CFLAGS += -O3
-CFLAGS += $(filter-out -Wstrict-prototypes -Wmissing-prototypes -Wold-style-definition -Wnested-externs,$(WERROR_FLAGS))
-CFLAGS += -DALLOW_EXPERIMENTAL_API
-
-# Add proper linking for C++ standard library
-LDLIBS += -lstdc++
-
-include $(RTE_SDK)/mk/rte.extapp.mk
-
-endif
+	rm -f $(APP) $(OBJS)
