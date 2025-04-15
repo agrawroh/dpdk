@@ -1,58 +1,52 @@
 ################################################################################
-# Monolithic Makefile for Modern DPDK (Unofficial, Example Only)
+# Monolithic Makefile for Modern DPDK (Unofficial) with 'install' target
 ################################################################################
 
 # 1) Toolchain commands (override via environment if needed)
 CC      ?= gcc
 AR      ?= ar
 LD      ?= ld
+PREFIX  ?= /usr/local   # Used by 'make install'. Overridden by rules_foreign_cc.
 
 # 2) Basic CFLAGS
-#    Tweak as needed for your environment, CPU type, and warnings
 CFLAGS  ?= -O3 -g -fPIC -Wall -Werror
 # 3) Additional DPDK-specific flags or defines
-#    Add things like -mavx2, -march=native, or -DRTE_XXXX if needed.
 DPDK_CFLAGS ?= -Wno-deprecated-declarations -D_GNU_SOURCE
-# 4) Include paths
-#    Adjust according to where your DPDK headers live.
-INCLUDES  ?= -I$(CURDIR) -I$(CURDIR)/include
+# 4) Include paths (adjust to your layout)
+INCLUDES  ?= -I$(CURDIR)/include -I$(CURDIR)
 
-# 5) Libraries required at link time. 
-#    You may need -lnuma, -lrt, -lpcap, or others depending on your drivers.
+# 5) Libraries required at link time (adjust as needed)
 LDLIBS   ?= -lm -lpthread -ldl
 
-# 6) If you want to produce a static library, specify it here:
+# 6) Final static library name
 TARGET_LIB ?= libdpdk.a
 
-# 7) Gather all .c files under lib/ and drivers/, excluding test, doc, or example code
+# 7) Gather all .c files under lib/ and drivers/, excluding test/doc/examples
 C_SRCS = $(shell find lib drivers -type f -name '*.c' \
           ! -path '*/test/*' \
           ! -path '*/doc/*' \
           ! -path '*/examples/*')
 
-# 8) Convert each .c file into a corresponding .o object file
 OBJS = $(C_SRCS:.c=.o)
 
 ################################################################################
-# Top-level build targets
+# Top-level targets
 ################################################################################
 
-.PHONY: all clean config
+.PHONY: all clean config install
 
 all: config $(TARGET_LIB)
 
-# Optional "config" step (placeholder). In older DPDK builds, you’d generate
-# config headers or detect CPU flags. Here it just prints a note:
+# Optional config step
 config:
 	@echo ">> No real config. If needed, generate rte_config.h or detect CPU features."
 
-# Build the static library from all .o files
 $(TARGET_LIB): $(OBJS)
 	@echo "  [AR] $@"
 	$(AR) rcs $@ $^
 
 ################################################################################
-# Object file compilation rules
+# Object file compilation
 ################################################################################
 
 %.o: %.c
@@ -60,7 +54,28 @@ $(TARGET_LIB): $(OBJS)
 	$(CC) $(CFLAGS) $(DPDK_CFLAGS) $(INCLUDES) -c $< -o $@
 
 ################################################################################
-# Cleanup
+# install
+################################################################################
+# We copy:
+#   - The static library to $(PREFIX)/lib
+#   - All headers from include/ to $(PREFIX)/include
+#
+# If your DPDK headers live elsewhere, adjust accordingly.
+
+install: all
+	@echo ">> Installing to $(PREFIX)"
+	mkdir -p $(PREFIX)/lib
+	cp -f $(TARGET_LIB) $(PREFIX)/lib
+	# Copy top-level include/ directory
+	if [ -d include ]; then \
+	  mkdir -p $(PREFIX)/include; \
+	  cp -R include/* $(PREFIX)/include/; \
+	fi
+	# If you want to copy any other headers from subdirectories:
+	# e.g. cp -R lib/some_module/include/* $(PREFIX)/include
+
+################################################################################
+# cleanup
 ################################################################################
 
 clean:
