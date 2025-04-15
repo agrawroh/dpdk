@@ -63,6 +63,7 @@ install: all
 	
 	# Create required directories
 	mkdir -p $(PREFIX)/lib
+	mkdir -p $(PREFIX)/generic
 	mkdir -p $(PREFIX)/include
 	mkdir -p $(PREFIX)/include/sys
 	mkdir -p $(PREFIX)/include/netinet
