@@ -63,8 +63,8 @@ install: all
 	
 	# Create required directories
 	mkdir -p $(PREFIX)/lib
-	mkdir -p $(PREFIX)/generic
 	mkdir -p $(PREFIX)/include
+	mkdir -p $(PREFIX)/include/generic
 	mkdir -p $(PREFIX)/include/sys
 	mkdir -p $(PREFIX)/include/netinet
 	
@@ -107,7 +107,7 @@ install: all
 	done
 
 	for header in lib/eal/include/generic/*.h; do \
-		cp -f $$header $(PREFIX)/generic/ || true; \
+		cp -f $$header $(PREFIX)/include/generic/ || true; \
 	done
 
 	# Ethdev headers
